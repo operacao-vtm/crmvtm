@@ -123,6 +123,9 @@ tr.clicavel{cursor:pointer}tr.clicavel:hover{background:var(--painel2)}
 .chips{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
 .chip{display:inline-flex;align-items:center;gap:6px;padding:4px 6px 4px 12px;border:1px solid var(--borda);border-radius:999px;background:var(--painel2);font-size:13px}
 .chip button{width:24px;height:24px;border:0;border-radius:50%;background:transparent;cursor:pointer;color:var(--ink3)}
+.badge{margin-left:auto;min-width:22px;padding:1px 7px;border-radius:999px;background:#D93F0B;color:#fff;font-size:12px;font-weight:700;text-align:center}
+.faltam{font-weight:700;white-space:nowrap}.faltam.ok{color:var(--verde)}.faltam.at{color:#B7791F}.faltam.ur{color:var(--verm)}
+.hist{list-style:none;margin:0;padding:0}.hist li{padding:8px 0;border-top:1px solid var(--linha2);font-size:13px}.hist li span{color:var(--ink3);margin-right:8px}
 .resp-l{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr) 150px 150px;gap:8px;align-items:center}
 .faixa-cfg{display:flex;flex-wrap:wrap;gap:10px;align-items:center;padding:14px 16px;border:1.5px solid var(--azul);border-radius:12px;background:var(--painel)}
 .entrada{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
@@ -193,7 +196,7 @@ const CONSULTA_SEG = 30;
 const $ = s => document.querySelector(s);
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const brl = v => 'R$ ' + Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
-const num = v => { const t = String(v == null ? '' : v).trim(); if (!t) return 0; const x = Number(t.indexOf(',') >= 0 ? t.replace(/\./g, '').replace(',', '.') : t); return isNaN(x) ? 0 : x; };
+const num = v => { if (typeof v === 'number') return v; const t = String(v == null ? '' : v).trim().replace(/^R\$\s*/, ''); if (!t) return 0; const x = Number(t.indexOf(',') >= 0 ? t.replace(/\./g, '').replace(',', '.') : /^\d{1,3}(\.\d{3})+$/.test(t) ? t.replace(/\./g, '') : t); return isNaN(x) ? 0 : x; };
 const dataBR = iso => { if (!iso) return '—'; const d = new Date(iso); return isNaN(d) ? '—' : d.toLocaleDateString('pt-BR'); };
 const dataHoraBR = iso => { if (!iso) return '—'; const d = new Date(iso); return isNaN(d) ? '—' : d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }); };
 const diasDesde = iso => { const d = new Date(iso); return isNaN(d) ? 0 : Math.max(0, Math.floor((Date.now() - d) / 86400000)); };
@@ -206,6 +209,7 @@ const ICO = {
   contatos: '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>',
   empresas: '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 21V5a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1v16"/><path d="M15 10h4a1 1 0 0 1 1 1v10"/><path d="M3 21h18M8 8h3M8 12h3M8 16h3"/></svg>',
   config: '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg>',
+  contratos: '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8z"/><path d="M14 3v5h5M8 13h8M8 17h5"/></svg>',
   lista: '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M8 6h13M8 12h13M8 18h13M3 6h1M3 12h1M3 18h1"/></svg>',
   baixar: '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5M4 21h16"/></svg>',
   voltar: '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>',
@@ -229,7 +233,7 @@ function sairAbertura() {
 if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
 
 /* ---------- estado ---------- */
-let S = { token: ler(CHAVE + '-token'), eu: null, configurado: false, cfg: null, pessoas: [], tickets: [], contatos: [], empresas: [], versao: '0', vendaVista: ler(CHAVE + '-venda') };
+let S = { token: ler(CHAVE + '-token'), eu: null, configurado: false, cfg: null, pessoas: [], tickets: [], contatos: [], empresas: [], contratos: [], versao: '0', vendaVista: ler(CHAVE + '-venda') };
 let UI = { aba: 'todos', busca: '', fResp: '', fPrio: '', fCriado: '', fAtiv: '', abaTempo: 'todas', eventos: [], eventosDe: null };
 let consulta = null;
 
@@ -254,7 +258,7 @@ function encerrar(msg) {
 async function carregarTudo() {
   const j = await api('carregar');
   if (j.config && j.config.cliente && j.config.cliente.nome) guardar(CHAVE + '-nome', j.config.cliente.nome);
-  Object.assign(S, { eu: j.eu, configurado: j.configurado, cfg: j.config, pessoas: j.pessoas, tickets: j.tickets, contatos: j.contatos, empresas: j.empresas, versao: j.versao });
+  Object.assign(S, { eu: j.eu, configurado: j.configurado, cfg: j.config, pessoas: j.pessoas, tickets: j.tickets, contatos: j.contatos, empresas: j.empresas, contratos: j.contratos || [], versao: j.versao });
   if (S.vendaVista == null && j.ultimaVenda) { S.vendaVista = j.ultimaVenda.id; guardar(CHAVE + '-venda', S.vendaVista); }
 }
 function iniciarConsulta() {
@@ -318,13 +322,29 @@ function visiveis() {
   }).sort((a, z) => z.numero - a.numero);
 }
 
+/* ---------- contratos: regras ---------- */
+const hojeISO = () => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
+const diasAte = fim => Math.round((new Date(String(fim) + 'T12:00:00') - new Date(hojeISO() + 'T12:00:00')) / 86400000);
+const dBR = d => { const m = String(d || '').match(/^(\d{4})-(\d{2})-(\d{2})/); return m ? m[3] + '/' + m[2] + '/' + m[1] : '—'; };
+const somaMeses = (ini, meses) => { const [a, m, d] = ini.split('-').map(Number); const x = new Date(a, m - 1 + Number(meses), d); x.setDate(x.getDate() - 1); return x.getFullYear() + '-' + String(x.getMonth() + 1).padStart(2, '0') + '-' + String(x.getDate()).padStart(2, '0'); };
+const diaSeguinte = d => { const [a, m, dd] = d.split('-').map(Number); const x = new Date(a, m - 1, dd + 1); return x.getFullYear() + '-' + String(x.getMonth() + 1).padStart(2, '0') + '-' + String(x.getDate()).padStart(2, '0'); };
+const mesesEntre = (ini, fim) => { const [a1, m1] = ini.split('-').map(Number), [a2, m2] = diaSeguinte(fim).split('-').map(Number); return Math.max(1, (a2 - a1) * 12 + (m2 - m1)); };
+const clienteContrato = c => (empresa(c.empresa_id) || {}).nome || (contato(c.contato_id) || {}).nome || '—';
+const vencendo = () => S.contratos.filter(c => c.situacao === 'ativo' && diasAte(c.fim) <= 30);
+function faltamHTML(c) {
+  if (c.situacao !== 'ativo') return '<span class="sub">' + (c.situacao === 'renovado' ? 'Renovado' : 'Encerrado') + '</span>';
+  const n = diasAte(c.fim), cl = n < 0 ? 'ur' : n <= 7 ? 'ur' : n <= 30 ? 'at' : 'ok';
+  return '<span class="faltam ' + cl + '">' + (n < 0 ? 'Venceu há ' + (-n) + ' dia' + (n === -1 ? '' : 's') : n === 0 ? 'Vence hoje' : n + ' dia' + (n === 1 ? '' : 's')) + '</span>';
+}
+
 /* ---------- molduras ---------- */
 function lateral(ativo) {
-  const it = [['quadro', plural(T()), 'tickets'], ['contatos', 'Contatos', 'contatos'], ['empresas', plural(E()), 'empresas']];
+  const it = [['quadro', plural(T()), 'tickets'], ['contratos', 'Contratos', 'contratos'], ['contatos', 'Contatos', 'contatos'], ['empresas', plural(E()), 'empresas']];
+  const nv = vencendo().length;
   if (gestor()) it.push(['config', 'Configurações', 'config']);
   const logo = S.cfg.cliente && S.cfg.cliente.logo;
   return '<aside class="side" id="lateral"><div class="marca"><div class="logo tem">' + (logo ? '<img src="' + esc(logo) + '" alt="">' : '<img src="icone-64.png" alt="">') + '</div><div style="min-width:0"><b>' + esc((S.cfg.cliente && S.cfg.cliente.nome) || 'Atendimento') + '</b><span>Atendimento</span></div></div>' +
-    '<nav class="nav" aria-label="Menu principal">' + it.map(i => '<a href="#' + i[0] + '"' + (ativo === i[2] ? ' class="on" aria-current="page"' : '') + '>' + ICO[i[2]] + esc(i[1]) + '</a>').join('') + '</nav>' +
+    '<nav class="nav" aria-label="Menu principal">' + it.map(i => '<a href="#' + i[0] + '"' + (ativo === i[2] ? ' class="on" aria-current="page"' : '') + '>' + ICO[i[2]] + esc(i[1]) + (i[2] === 'contratos' && nv ? '<span class="badge" title="Vencendo em até 30 dias">' + nv + '</span>' : '') + '</a>').join('') + '</nav>' +
     '<div class="eu"><span><b style="color:var(--ink)">' + esc(S.eu.nome) + '</b> · ' + (gestor() ? 'Gestor' : 'Atendente') + '</span><button class="btn peq" data-sair>Sair</button></div></aside>';
 }
 function moldura(ativo, titulo, corpo) {
@@ -510,7 +530,9 @@ function telaTicket(id) {
   const meio = '<section class="caixa" aria-label="Linha do tempo"><h2>Linha do tempo</h2><div class="abas" role="tablist">' + [['todas', 'Todas'], ['observacao', 'Observações'], ['ligacao', 'Ligações'], ['tarefa', 'Tarefas']].map(a => '<button role="tab" aria-selected="' + (UI.abaTempo === a[0]) + '" class="' + (UI.abaTempo === a[0] ? 'on' : '') + '" data-abat="' + a[0] + '">' + a[1] + '</button>').join('') + '</div>' +
     '<div class="registro"><label class="campo" for="reg">Registrar observação, ligação ou tarefa</label><textarea id="reg" rows="2" placeholder="Escreva aqui" style="padding:10px 12px;border:1px solid var(--borda);border-radius:8px;background:var(--painel)"></textarea><div class="grupo" style="justify-content:flex-end"><button class="btn" data-reg="observacao">Observação</button><button class="btn" data-reg="ligacao">Ligação</button><button class="btn" data-reg="tarefa">Tarefa</button></div></div>' +
     (UI.eventos === null ? '<p class="sub">Carregando…</p>' : '<ol class="tempo">' + (evs.length ? evs.map(e => '<li><span class="mev ' + e.tipo + '">' + tipoEv[e.tipo][0] + '</span><div><span class="ev-k">' + tipoEv[e.tipo][1] + '</span><span class="ev-q">' + dataHoraBR(e.criado_em) + '</span><div class="ev-t">' + esc(e.texto) + '</div></div></li>').join('') : '<li class="sub">Nada registrado aqui ainda.</li>') + '</ol>') + '</section>';
-  const dir = '<aside class="lado" aria-label="Contato e ' + esc(E().toLowerCase()) + '"><section class="caixa" style="gap:8px"><h2>Contato</h2>' + (ct ? '<b>' + esc(ct.nome) + '</b><span class="sub">' + esc(ct.cargo) + '</span><span>' + esc(ct.telefone) + '</span><span>' + esc(ct.email) + '</span>' : '<span class="sub">Nenhum contato ligado.</span>') +
+  const ctr = S.contratos.filter(c => c.ticket_id === t.id);
+  const blocoContrato = ehVenda(t.etapa) ? '<section class="caixa" style="gap:8px"><h2>Contrato</h2>' + (ctr.length ? ctr.map(c => '<a href="#contrato/' + c.id + '">' + esc(c.titulo) + ' · até ' + dBR(c.fim) + '</a>').join('') : '<span class="sub">Esta venda ainda não tem contrato.</span><button class="btn verde" data-novocontrato="' + t.id + '">Criar contrato</button>') + '</section>' : '';
+  const dir = '<aside class="lado" aria-label="Contato e ' + esc(E().toLowerCase()) + '">' + blocoContrato + '<section class="caixa" style="gap:8px"><h2>Contato</h2>' + (ct ? '<b>' + esc(ct.nome) + '</b><span class="sub">' + esc(ct.cargo) + '</span><span>' + esc(ct.telefone) + '</span><span>' + esc(ct.email) + '</span>' : '<span class="sub">Nenhum contato ligado.</span>') +
     '<label class="campo">' + (ct ? 'Trocar contato' : 'Adicionar contato') + '<select data-troca="contato_id">' + opcoes(S.contatos.map(c => [c.id, c.nome]), t.contato_id, 'Sem contato') + '</select></label></section>' +
     '<section class="caixa" style="gap:8px"><h2>' + esc(E()) + '</h2>' + (em ? '<b>' + esc(em.nome) + '</b><span class="sub">' + esc(em.documento) + '</span><span>' + esc(em.telefone) + '</span>' : '<span class="sub">Nenhum(a) ' + esc(E().toLowerCase()) + ' ligado(a).</span>') +
     '<label class="campo">' + (em ? 'Trocar' : 'Adicionar') + '<select data-troca="empresa_id">' + opcoes(S.empresas.map(c => [c.id, c.nome]), t.empresa_id, 'Sem ' + E().toLowerCase()) + '</select></label></section></aside>';
@@ -572,7 +594,73 @@ function telaFicha2(tipo, id) {
   if (!x) return moldura(ehC ? 'contatos' : 'empresas', '', '<main><p>Não encontrado.</p></main>');
   const tks = S.tickets.filter(t => ehC ? t.contato_id === id : t.empresa_id === id).sort((a, b) => b.numero - a.numero);
   const contatosDaEmpresa = ehC ? '' : '<section class="caixa"><h2>Contatos</h2>' + (S.contatos.filter(c => c.empresa_id === id).map(c => '<a href="#contato/' + c.id + '" style="font-weight:600;text-decoration:none">' + esc(c.nome) + '</a><span class="sub" style="margin-top:-10px">' + esc([c.cargo, c.telefone, c.email].filter(Boolean).join(' · ')) + '</span>').join('') || '<p class="sub" style="margin:0">Nenhum contato ligado.</p>') + '</section>';
-  return '<div class="cab-ficha"><a class="btn" href="#' + tipo + '">' + ICO.voltar + (ehC ? 'Contatos' : esc(plural(E()))) + '</a><h1>' + esc(x.nome) + '</h1></div><div class="duas"><form class="caixa" id="fFicha2"><h2>Dados</h2>' + formCadastro(tipo, x) + '<p class="erro" id="eF2"></p><button class="btn pri">Salvar alterações</button></form><div class="lado">' + contatosDaEmpresa + '<section class="caixa"><h2>' + esc(plural(T())) + '</h2>' + tabelaTickets(tks) + '</section></div></div>';
+  return '<div class="cab-ficha"><a class="btn" href="#' + tipo + '">' + ICO.voltar + (ehC ? 'Contatos' : esc(plural(E()))) + '</a><h1>' + esc(x.nome) + '</h1></div><div class="duas"><form class="caixa" id="fFicha2"><h2>Dados</h2>' + formCadastro(tipo, x) + '<p class="erro" id="eF2"></p><button class="btn pri">Salvar alterações</button></form><div class="lado">' + contatosDaEmpresa + (ehC ? '' : '<section class="caixa"><div class="ent"><h2>Contratos</h2><button class="btn peq" data-novocontrato="" data-empresa="' + id + '">+ Contrato</button></div>' + (S.contratos.filter(c => c.empresa_id === id).sort((a, z) => String(z.fim).localeCompare(String(a.fim))).map(c => '<a href="#contrato/' + c.id + '" style="text-decoration:none;display:flex;justify-content:space-between;gap:8px"><b>' + esc(c.titulo) + '</b>' + faltamHTML(c) + '</a><span class="sub" style="margin-top:-10px">' + dBR(c.inicio) + ' a ' + dBR(c.fim) + (c.valor_mensal ? ' · ' + brl(c.valor_mensal) + '/mês' : '') + '</span>').join('') || '<p class="sub" style="margin:0">Nenhum contrato.</p>') + '</section>') + '<section class="caixa"><h2>' + esc(plural(T())) + '</h2>' + tabelaTickets(tks) + '</section></div></div>';
+}
+
+/* ---------- contratos: telas ---------- */
+function linhaContrato(c) { return '<tr class="clicavel" data-ir="#contrato/' + c.id + '"><td><a href="#contrato/' + c.id + '">' + esc(clienteContrato(c)) + '</a></td><td>' + esc(c.titulo) + '</td><td>' + dBR(c.inicio) + '</td><td>' + dBR(c.fim) + '</td><td>' + faltamHTML(c) + '</td><td>' + (c.valor_mensal ? brl(c.valor_mensal) : '—') + '</td><td>' + esc(nomePessoa(c.responsavel_id)) + '</td></tr>'; }
+function tabelaContratos(L, vazio) { return '<div class="tabela"><table style="min-width:820px"><thead><tr><th>Cliente</th><th>Contratado</th><th>Início</th><th>Fim</th><th>Faltam</th><th>Valor mensal</th><th>Responsável</th></tr></thead><tbody>' + (L.length ? L.map(linhaContrato).join('') : '<tr><td colspan="7" class="vazio">' + vazio + '</td></tr>') + '</tbody></table></div>'; }
+function telaContratos() {
+  const b = (UI.buscaC || '').toLowerCase();
+  const F = S.contratos.filter(c => !b || (clienteContrato(c) + ' ' + c.titulo).toLowerCase().indexOf(b) >= 0);
+  const porFim = (a, z) => String(a.fim).localeCompare(String(z.fim));
+  const venc = F.filter(c => c.situacao === 'ativo' && diasAte(c.fim) <= 30).sort(porFim);
+  const ativos = F.filter(c => c.situacao === 'ativo' && diasAte(c.fim) > 30).sort(porFim);
+  const fora = F.filter(c => c.situacao !== 'ativo').sort((a, z) => String(z.fim).localeCompare(String(a.fim)));
+  const mensal = S.contratos.filter(c => c.situacao === 'ativo').reduce((s, c) => s + (c.valor_mensal || 0), 0);
+  const k = (v, r, s, cl) => '<div class="kpi' + (cl ? ' ' + cl : '') + '"><b>' + v + '</b><span>' + r + '</span><em>' + s + '</em></div>';
+  return moldura('contratos', 'Contratos', '<main><div class="linha-topo"><h1>Contratos</h1><button class="btn pri" data-novocontrato>+ Contrato</button></div>' +
+    '<div class="kpis" style="grid-template-columns:repeat(3,minmax(0,1fr))">' + k(S.contratos.filter(c => c.situacao === 'ativo').length, 'contratos ativos', 'em vigor hoje') + k(vencendo().length, 'vencendo em 30 dias', 'inclui os já vencidos', vencendo().length ? 'az' : '') + k(brl(mensal), 'receita mensal', 'soma dos contratos ativos', 'vd') + '</div>' +
+    '<label class="campo" style="max-width:420px">Buscar<input type="search" data-buscac value="' + esc(UI.buscaC || '') + '" placeholder="Cliente ou o que foi contratado"></label>' +
+    '<h2 style="margin:6px 0 0;font-size:16px">Vencendo nos próximos 30 dias</h2>' + tabelaContratos(venc, 'Nenhum contrato vencendo.') +
+    '<h2 style="margin:6px 0 0;font-size:16px">Ativos</h2>' + tabelaContratos(ativos, 'Nenhum contrato ativo além dos que estão vencendo.') +
+    '<h2 style="margin:6px 0 0;font-size:16px">Renovados e encerrados</h2>' + tabelaContratos(fora, 'Nenhum ainda.') + '</main>');
+}
+function formContrato(c) {
+  const ativos = S.pessoas.filter(p => p.ativo || p.id === c.responsavel_id);
+  const meses = c.inicio && c.fim ? mesesEntre(c.inicio, c.fim) : 3;
+  return '<div class="par"><label class="campo">' + esc(E()) + '<select name="empresa_id">' + opcoes(S.empresas.map(x => [x.id, x.nome]), c.empresa_id, 'Sem ' + E().toLowerCase()) + '</select></label><label class="campo">Contato<select name="contato_id">' + opcoes(S.contatos.map(x => [x.id, x.nome]), c.contato_id, 'Sem contato') + '</select></label></div>' +
+    '<label class="campo">O que foi contratado<input name="titulo" value="' + esc(c.titulo) + '" required placeholder="Ex.: Gestão de tráfego pago"></label>' +
+    '<div class="par par3"><label class="campo">Início<input type="date" name="inicio" value="' + esc(c.inicio || hojeISO()) + '" required></label><label class="campo">Duração (meses)<input name="meses" inputmode="numeric" value="' + meses + '"></label><label class="campo">Fim<input type="date" name="fim" value="' + esc(c.fim || somaMeses(c.inicio || hojeISO(), meses)) + '" required></label></div>' +
+    '<div class="par par3"><label class="campo">Valor mensal (R$)<input name="valor_mensal" inputmode="decimal" value="' + (c.valor_mensal ? String(c.valor_mensal).replace('.', ',') : '') + '"></label><label class="campo">Período mínimo (meses)<input name="periodo_minimo" inputmode="numeric" value="' + (c.periodo_minimo || '') + '"></label><label class="campo">Renova sozinho?<select name="renova">' + opcoes([['nao', 'Não'], ['sim', 'Sim']], c.renova ? 'sim' : 'nao') + '</select></label></div>' +
+    '<label class="campo">Responsável<select name="responsavel_id">' + opcoes(ativos.map(p => [p.id, p.nome]), c.responsavel_id || S.eu.id, 'Não atribuído') + '</select></label>' +
+    '<label class="campo">Observação<textarea name="observacao" rows="2">' + esc(c.observacao) + '</textarea></label>';
+}
+function lerContrato(f) { return { empresa_id: f.empresa_id.value, contato_id: f.contato_id.value, titulo: f.titulo.value, inicio: f.inicio.value, fim: f.fim.value, valor_mensal: num(f.valor_mensal.value), periodo_minimo: Number(f.periodo_minimo.value) || 0, renova: f.renova.value === 'sim', responsavel_id: f.responsavel_id.value, observacao: f.observacao.value }; }
+async function salvarContrato(dados, campoErro) {
+  try { const j = await api('salvarContrato', { contrato: dados }); const i = S.contratos.findIndex(x => x.id === j.contrato.id); if (i >= 0) S.contratos[i] = j.contrato; else S.contratos.push(j.contrato); return j.contrato; }
+  catch (e) { $(campoErro).textContent = e.message; return null; }
+}
+function abrirNovoContrato(pre) {
+  modal('<header><h1>Novo contrato</h1><button class="btn ic-so" data-fecha aria-label="Fechar">' + ICO.fechar + '</button></header><form id="fContrato"><div class="corpo">' + formContrato(pre || {}) + '<p class="erro" id="eContrato"></p></div><footer><button type="button" class="btn" data-fecha>Cancelar</button><button class="btn pri">Salvar contrato</button></footer></form>');
+  $('#fContrato').addEventListener('submit', async ev => { ev.preventDefault(); const b = ev.target.querySelector('.btn.pri'); b.disabled = true; const c = await salvarContrato(Object.assign({ ticket_id: (pre || {}).ticket_id || '' }, lerContrato(ev.target)), '#eContrato'); if (c) { fecharModal(); avisar('Contrato salvo.'); location.hash = '#contrato/' + c.id; } else b.disabled = false; });
+}
+function telaContrato(id) {
+  const c = S.contratos.find(x => x.id === id);
+  if (!c) return moldura('contratos', 'Contratos', '<main><p>Contrato não encontrado.</p><a class="btn" href="#contratos">Voltar</a></main>');
+  const ant = c.anterior_id && S.contratos.find(x => x.id === c.anterior_id), prox = S.contratos.find(x => x.anterior_id === c.id);
+  const acoes = c.situacao === 'ativo' ? '<div class="grupo"><button class="btn verde" data-renovar="' + c.id + '">Renovar</button><button class="btn" data-encerrar="' + c.id + '">Encerrar</button></div>' : '';
+  return '<div class="cab-ficha"><a class="btn" href="#contratos">' + ICO.voltar + 'Contratos</a><h1>' + esc(clienteContrato(c)) + ' · ' + esc(c.titulo) + '</h1>' + faltamHTML(c) + '</div><div class="duas">' +
+    '<form class="caixa" id="fFichaContrato"><h2>Dados do contrato</h2>' + formContrato(c) + '<p class="erro" id="eFC"></p>' + (c.situacao === 'ativo' ? '<button class="btn pri">Salvar alterações</button>' : '<span class="sub">Este período está ' + (c.situacao === 'renovado' ? 'renovado' : 'encerrado') + '. As alterações são feitas no período ativo.</span>') + '</form>' +
+    '<div class="lado"><section class="caixa"><div class="ent"><h2>Situação</h2>' + acoes + '</div><div class="par"><div class="ler"><span>Período</span><span>' + dBR(c.inicio) + ' a ' + dBR(c.fim) + '</span></div><div class="ler"><span>Faltam</span><span>' + faltamHTML(c) + '</span></div></div>' +
+    (c.periodo_minimo ? '<span class="sub">Período mínimo: ' + c.periodo_minimo + ' meses' + (c.renova ? ' · renova sozinho' : '') + '</span>' : '') +
+    (ant ? '<a href="#contrato/' + ant.id + '">Ver o período anterior (' + dBR(ant.inicio) + ' a ' + dBR(ant.fim) + ')</a>' : '') + (prox ? '<a href="#contrato/' + prox.id + '">Ver o período seguinte (' + dBR(prox.inicio) + ' a ' + dBR(prox.fim) + ')</a>' : '') +
+    (c.ticket_id && S.tickets.find(t => t.id === c.ticket_id) ? '<a href="#ticket/' + c.ticket_id + '">Ver o ' + esc(T().toLowerCase()) + ' da venda</a>' : '') +
+    '<span class="sub">Avisos por e-mail ao gestor e ao responsável 30, 15 e 7 dias antes do fim e no dia do vencimento.</span></section>' +
+    '<section class="caixa"><h2>Histórico</h2><ul class="hist">' + (c.historico || []).slice().reverse().map(h => '<li><span>' + dataHoraBR(h.em) + '</span>' + esc(h.texto) + '</li>').join('') + '</ul></section></div></div>';
+}
+function abrirRenovar(c) {
+  const ini = diaSeguinte(c.fim), meses = mesesEntre(c.inicio, c.fim);
+  modal('<header><h1>Renovar contrato</h1></header><form id="fRenova"><div class="corpo"><span class="sub">' + esc(clienteContrato(c)) + ' · ' + esc(c.titulo) + '</span><div class="par par3"><label class="campo">Novo início<input type="date" name="inicio" value="' + ini + '" required></label><label class="campo">Duração (meses)<input name="meses" inputmode="numeric" value="' + meses + '"></label><label class="campo">Novo fim<input type="date" name="fim" value="' + somaMeses(ini, meses) + '" required></label></div><label class="campo">Valor mensal (R$)<input name="valor_mensal" inputmode="decimal" value="' + (c.valor_mensal ? String(c.valor_mensal).replace('.', ',') : '') + '"></label><p class="erro" id="eRenova"></p></div><footer><button type="button" class="btn" data-fecha>Cancelar</button><button class="btn verde">Renovar</button></footer></form>', true);
+  $('#fRenova').addEventListener('submit', async ev => { ev.preventDefault(); const f = ev.target, b = f.querySelector('.btn.verde'); b.disabled = true;
+    try { const j = await api('renovarContrato', { id: c.id, inicio: f.inicio.value, fim: f.fim.value, valor_mensal: num(f.valor_mensal.value) }); Object.assign(S.contratos.find(x => x.id === c.id), j.anterior); S.contratos.push(j.contrato); fecharModal(); avisar('Contrato renovado até ' + dBR(j.contrato.fim) + '.', 'vd'); location.hash = '#contrato/' + j.contrato.id; }
+    catch (e) { $('#eRenova').textContent = e.message; b.disabled = false; } });
+}
+function abrirEncerrar(c) {
+  modal('<header><h1>Encerrar contrato</h1></header><form id="fEncerra"><div class="corpo"><span class="sub">' + esc(clienteContrato(c)) + ' · ' + esc(c.titulo) + '</span><label class="campo">Motivo<input name="motivo" required placeholder="Ex.: cliente não renovou"></label><p class="erro" id="eEncerra"></p></div><footer><button type="button" class="btn" data-fecha>Cancelar</button><button class="btn pri">Encerrar</button></footer></form>', true);
+  $('#fEncerra').addEventListener('submit', async ev => { ev.preventDefault(); const f = ev.target;
+    try { const j = await api('encerrarContrato', { id: c.id, motivo: f.motivo.value }); Object.assign(S.contratos.find(x => x.id === c.id), j.contrato); fecharModal(); avisar('Contrato encerrado.'); desenhar(true); }
+    catch (e) { $('#eEncerra').textContent = e.message; } });
 }
 
 /* ---------- configurações (gestor) ---------- */
@@ -639,11 +727,14 @@ function desenhar(manterRolagem) {
   else if (rota === 'contato') html = telaFicha2('contatos', id);
   else if (rota === 'empresa') html = telaFicha2('empresas', id);
   else if (rota === 'config') html = telaConfig();
+  else if (rota === 'contratos') html = telaContratos();
+  else if (rota === 'contrato') html = telaContrato(id);
   else html = telaQuadro();
   if (!html) return;
   $('#tela').innerHTML = html;
   sairAbertura();
   if (rota === 'ticket') ligarFicha(id);
+  if (rota === 'contrato') { const f = $('#fFichaContrato'); if (f) f.addEventListener('submit', async ev => { ev.preventDefault(); const c = await salvarContrato(Object.assign({ id: id }, lerContrato(f)), '#eFC'); if (c) { avisar('Contrato salvo.'); desenhar(true); } }); }
   if (rota === 'contato' || rota === 'empresa') {
     const tipo = rota === 'contato' ? 'contatos' : 'empresas', f = $('#fFicha2');
     if (f) f.addEventListener('submit', async ev => { ev.preventDefault(); const s = await salvarCadastro(tipo, Object.assign({ id: id }, lerCadastro(f, tipo)), '#eF2'); if (s) { avisar('Cadastro salvo.'); desenhar(true); } });
@@ -670,6 +761,9 @@ document.addEventListener('click', async e => {
   if (t.closest('[data-csv]')) { exportarCSV(); return; }
   const nv = t.closest('[data-novo]'); if (nv) { e.preventDefault(); abrirNovo(nv.dataset.novo); return; }
   const cad = t.closest('[data-cad]'); if (cad) { abrirCadastro(cad.dataset.cad); return; }
+  if (t.closest('[data-novocontrato]')) { const el = t.closest('[data-novocontrato]'), tid = el.dataset.novocontrato; const tk = tid && S.tickets.find(x => x.id === tid); abrirNovoContrato(tk ? { empresa_id: tk.empresa_id, contato_id: tk.contato_id, titulo: tk.titulo, valor_mensal: tk.valor, responsavel_id: tk.responsavel_id, ticket_id: tk.id } : (el.dataset.empresa ? { empresa_id: el.dataset.empresa } : {})); return; }
+  const ren = t.closest('[data-renovar]'); if (ren) { abrirRenovar(S.contratos.find(x => x.id === ren.dataset.renovar)); return; }
+  const enc = t.closest('[data-encerrar]'); if (enc) { abrirEncerrar(S.contratos.find(x => x.id === enc.dataset.encerrar)); return; }
   const reg = t.closest('[data-reg]'); if (reg) {
     const txt = $('#reg').value.trim(); if (!txt) { $('#reg').focus(); avisar('Escreva o registro antes de salvar.', 'er'); return; }
     const id = $('[data-ficha]').dataset.ficha; reg.disabled = true;
@@ -698,6 +792,8 @@ document.addEventListener('click', async e => {
 document.addEventListener('input', e => {
   const t = e.target;
   if (t.matches('[data-busca]')) { UI.busca = t.value; const p = t.selectionStart; desenhar(true); const n = $('[data-busca]'); if (n) { n.focus(); n.setSelectionRange(p, p); } return; }
+  if (t.matches('[data-buscac]')) { UI.buscaC = t.value; const p = t.selectionStart; desenhar(true); const n = $('[data-buscac]'); if (n) { n.focus(); n.setSelectionRange(p, p); } return; }
+  if ((t.name === 'meses' || t.name === 'inicio') && t.form && t.form.fim && t.form.meses) { const m = Number(t.form.meses.value); if (t.form.inicio.value && m > 0) t.form.fim.value = somaMeses(t.form.inicio.value, m); return; }
   if (t.matches('[data-busca2]')) { UI.busca2 = t.value; const p = t.selectionStart; desenhar(true); const n = $('[data-busca2]'); if (n) { n.focus(); n.setSelectionRange(p, p); } return; }
   if (!RASCUNHO) return;
   const c = RASCUNHO;
