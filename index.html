@@ -195,7 +195,9 @@ let consulta = null;
 /* ---------- comunicação com a planilha ---------- */
 async function api(acao, dados) {
   if (API.indexOf('http') !== 0) throw new Error('Endereço da planilha não configurado neste arquivo (linha const API).');
-  const r = await fetch(API, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(Object.assign({ acao: acao, token: S.token }, dados || {})) });
+  let r;
+  try { r = await fetch(API, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(Object.assign({ acao: acao, token: S.token }, dados || {})) }); }
+  catch (e) { throw new Error('Sem conexão com a planilha. Confira a internet e tente de novo.'); }
   let j;
   try { j = await r.json(); } catch (e) { throw new Error('A planilha não respondeu como esperado. Confira a publicação do Apps Script.'); }
   if (!j.ok) {
@@ -288,16 +290,41 @@ function moldura(ativo, titulo, corpo) {
 }
 
 /* ---------- entrada, senha, aguarde ---------- */
+let PUB = null;
+async function carregarPublico() {
+  if (PUB) return PUB;
+  try { PUB = await api('publico'); } catch (e) { PUB = { cliente: '', logo: '' }; }
+  return PUB;
+}
+function cabEntrada(pub) {
+  const logo = pub && pub.logo, nome = (pub && pub.cliente) || 'Sistema de Atendimento';
+  return '<div style="display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center"><div class="logo' + (logo ? ' tem' : '') + '" style="width:64px;height:64px;border-radius:16px;' + (logo ? '' : 'border:0;background:var(--azul-claro);color:var(--azul)') + '">' + (logo ? '<img src="' + esc(logo) + '" alt="">' : ICO.tickets.replace('class="ic"', 'class="ic" style="width:30px;height:30px"')) + '</div><div><b style="display:block;font-size:19px">' + esc(nome) + '</b>' + (pub && pub.cliente ? '<span class="sub">Atendimento</span>' : '') + '</div></div>';
+}
 function telaEntrar(msg) {
-  $('#tela').innerHTML = '<div class="entrada"><section aria-label="Entrar"><h1 style="font-size:22px">Entrar</h1><form id="fLogin" style="display:flex;flex-direction:column;gap:14px"><label class="campo">E-mail<input type="email" name="email" autocomplete="username" required style="min-height:44px"></label><label class="campo">Senha<input type="password" name="senha" autocomplete="current-password" required style="min-height:44px"></label><p class="erro" id="eLogin">' + esc(msg || '') + '</p><button class="btn pri" style="min-height:46px">Entrar</button></form><button class="btn" data-esqueci style="border:0;color:var(--azul)">Esqueci minha senha</button></section></div>';
-  $('#fLogin').addEventListener('submit', async ev => {
-    ev.preventDefault(); const f = ev.target, b = f.querySelector('button'); b.disabled = true; $('#eLogin').textContent = '';
-    try { const j = await api('login', { email: f.email.value, senha: f.senha.value }); S.token = j.token; guardar(CHAVE + '-token', j.token); await abrir(); }
-    catch (e) { $('#eLogin').textContent = e.message; b.disabled = false; }
+  const lembrado = ler(CHAVE + '-email') || '';
+  $('#tela').innerHTML = '<div class="entrada"><section aria-label="Entrar" style="gap:20px"><div id="cabEnt">' + cabEntrada(PUB) + '</div>' +
+    '<form id="fLogin" style="display:flex;flex-direction:column;gap:14px" novalidate>' +
+    '<label class="campo">E-mail<input type="email" name="email" autocomplete="username" value="' + esc(lembrado) + '" required style="min-height:46px;font-size:15px"></label>' +
+    '<div class="campo"><label for="senhaEnt">Senha</label><div style="position:relative"><input id="senhaEnt" type="password" name="senha" autocomplete="current-password" required style="min-height:46px;font-size:15px;width:100%;padding-right:84px;border:1px solid var(--borda);border-radius:8px;background:var(--painel);color:var(--ink);padding-left:12px"><button type="button" class="btn peq" data-olho style="position:absolute;right:6px;top:7px;min-height:32px">Mostrar</button></div></div>' +
+    '<p class="erro" id="eLogin" role="alert" style="margin:0">' + esc(msg || '') + '</p>' +
+    '<button class="btn pri" style="min-height:48px;font-size:15px">Entrar</button></form>' +
+    '<button class="btn" data-esqueci style="border:0;color:var(--azul);background:transparent">Esqueci minha senha</button>' +
+    '<p class="sub" style="margin:0;text-align:center;font-size:12px">Atendimento · uma solução Vext Code</p></section></div>';
+  if (!PUB) carregarPublico().then(p => { const c = $('#cabEnt'); if (c) c.innerHTML = cabEntrada(p); });
+  const f = $('#fLogin');
+  (lembrado ? f.senha : f.email).focus();
+  f.addEventListener('submit', async ev => {
+    ev.preventDefault(); const b = f.querySelector('.btn.pri'), err = $('#eLogin');
+    const email = f.email.value.trim(), senha = f.senha.value;
+    if (!email || email.indexOf('@') < 1) { err.textContent = 'Digite o seu e-mail.'; f.email.focus(); return; }
+    if (!senha) { err.textContent = 'Digite a sua senha.'; f.senha.focus(); return; }
+    b.disabled = true; b.textContent = 'Entrando…'; err.textContent = '';
+    try { const j = await api('login', { email: email, senha: senha }); S.token = j.token; guardar(CHAVE + '-token', j.token); guardar(CHAVE + '-email', email); await abrir(); }
+    catch (e) { err.textContent = e.message; b.disabled = false; b.textContent = 'Entrar'; f.senha.select(); }
   });
 }
 function telaSenha() {
-  $('#tela').innerHTML = '<div class="entrada"><section aria-label="Criar senha"><h1 style="font-size:22px">Crie a sua senha</h1><p class="sub" style="margin:0">Troque a senha provisória por uma só sua, com pelo menos 8 caracteres.</p><form id="fSenha" style="display:flex;flex-direction:column;gap:14px"><label class="campo">Senha nova<input type="password" name="a" autocomplete="new-password" minlength="8" required style="min-height:44px"></label><label class="campo">Repita a senha nova<input type="password" name="b" autocomplete="new-password" minlength="8" required style="min-height:44px"></label><p class="erro" id="eSenha"></p><button class="btn pri" style="min-height:46px">Salvar e continuar</button></form></section></div>';
+  $('#tela').innerHTML = '<div class="entrada"><section aria-label="Criar senha">' + cabEntrada(PUB) + '<h1 style="font-size:22px">Crie a sua senha</h1><p class="sub" style="margin:0">Troque a senha provisória por uma só sua, com pelo menos 8 caracteres.</p><form id="fSenha" style="display:flex;flex-direction:column;gap:14px"><label class="campo">Senha nova<input type="password" name="a" autocomplete="new-password" minlength="8" required style="min-height:44px"></label><label class="campo">Repita a senha nova<input type="password" name="b" autocomplete="new-password" minlength="8" required style="min-height:44px"></label><p class="erro" id="eSenha"></p><button class="btn pri" style="min-height:46px">Salvar e continuar</button></form></section></div>';
   $('#fSenha').addEventListener('submit', async ev => {
     ev.preventDefault(); const f = ev.target, b = f.querySelector('button');
     if (f.a.value !== f.b.value) { $('#eSenha').textContent = 'As duas senhas não são iguais.'; return; }
@@ -582,6 +609,7 @@ window.addEventListener('hashchange', () => { if (!location.hash.startsWith('#co
 /* ---------- cliques e campos ---------- */
 document.addEventListener('click', async e => {
   const t = e.target;
+  if (t.closest('[data-olho]')) { const i = $('#senhaEnt'), b = t.closest('[data-olho]'); const ver = i.type === 'password'; i.type = ver ? 'text' : 'password'; b.textContent = ver ? 'Ocultar' : 'Mostrar'; i.focus(); return; }
   if (t.closest('[data-menu]')) { $('#lateral').classList.toggle('aberto'); return; }
   const lat = $('#lateral'); if (lat && lat.classList.contains('aberto') && !t.closest('#lateral')) lat.classList.remove('aberto');
   if (t.closest('[data-sair]')) { try { await api('sair'); } catch (x) {} encerrar(''); return; }
