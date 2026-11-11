@@ -4,6 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Atendimento</title>
+<meta name="theme-color" content="#0E1626">
+<link rel="icon" type="image/png" sizes="32x32" href="icone-32.png">
+<link rel="icon" type="image/png" sizes="64x64" href="icone-64.png">
+<link rel="apple-touch-icon" href="icone-180.png">
+<link rel="manifest" href="manifest.json">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Atendimento">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
 <style>
 :root{--fundo:#F4F5F7;--painel:#FFFFFF;--painel2:#F7F8FA;--coluna:#EBEDF1;--linha:#DCE0E6;--linha2:#EEF0F3;--borda:#D5DAE1;--ink:#1B2430;--ink2:#3B4552;--ink3:#4A5462;--azul:#1D4ED8;--azul-claro:#E8EEFD;--verde:#2F7D4F;--verm:#B42318;color-scheme:light}
@@ -141,11 +148,33 @@ tr.clicavel{cursor:pointer}tr.clicavel:hover{background:var(--painel2)}
  .resp-cab{display:none}
  .rot{display:none}
 }
-@media (prefers-reduced-motion:reduce){*{scroll-behavior:auto}}
+/* abertura (carregamento especial) */
+#abertura{position:fixed;inset:0;z-index:100;background:radial-gradient(circle at 50% 38%,#16233D 0,#0E1626 55%,#0A0F1A 100%);display:flex;align-items:center;justify-content:center;transition:opacity .5s ease}
+#abertura.sai{opacity:0;pointer-events:none}
+#abertura .marca-ab{display:flex;flex-direction:column;align-items:center;gap:18px;color:#fff;text-align:center;padding:24px}
+#abertura .moldura{width:150px;height:150px;border-radius:38px;padding:5px;background:linear-gradient(135deg,#60A5FA,#2563EB 55%,#22C08A);opacity:0;transform:scale(.85);animation:abMold .6s cubic-bezier(.2,.9,.3,1.15) .05s forwards}
+#abertura .dentro{width:100%;height:100%;border-radius:33px;background:#0E1626;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px}
+#abertura .crm{font-size:34px;font-weight:800;letter-spacing:14px;margin-right:-14px;opacity:0;animation:abTxt .7s ease .45s forwards}
+#abertura .barras{display:flex;align-items:flex-end;gap:7px;height:46px}
+#abertura .barras i{display:block;width:15px;border-radius:5px;background:linear-gradient(0deg,#2563EB,#60A5FA);transform:scaleY(0);transform-origin:bottom;animation:abSobe .5s cubic-bezier(.2,.9,.3,1.25) forwards,abPulso 1.6s ease-in-out 1.6s infinite}
+#abertura .barras i:nth-child(1){height:38%;animation-delay:.6s,1.6s}
+#abertura .barras i:nth-child(2){height:58%;animation-delay:.72s,1.75s}
+#abertura .barras i:nth-child(3){height:78%;animation-delay:.84s,1.9s}
+#abertura .barras i:nth-child(4){height:100%;background:linear-gradient(0deg,#16A06B,#4ADE9B);animation-delay:.96s,2.05s}
+#abertura .nome{font-size:20px;font-weight:700;opacity:0;animation:abAparece .5s ease 1.05s forwards}
+#abertura .vext{font-size:12px;color:#93A3BF;letter-spacing:.06em;opacity:0;animation:abAparece .5s ease 1.25s forwards}
+#abertura .vext b{color:#4ADE9B;font-weight:600}
+@keyframes abMold{to{opacity:1;transform:scale(1)}}
+@keyframes abTxt{0%{opacity:0;letter-spacing:14px;filter:blur(6px)}100%{opacity:1;letter-spacing:4px;filter:blur(0)}}
+@keyframes abSobe{to{transform:scaleY(1)}}
+@keyframes abPulso{0%,100%{transform:scaleY(1)}50%{transform:scaleY(.72)}}
+@keyframes abAparece{to{opacity:1}}
+@media (prefers-reduced-motion:reduce){*{scroll-behavior:auto}#abertura *{animation:none!important;opacity:1!important;transform:none!important;letter-spacing:4px!important}}
 </style>
 </head>
 <body>
-<div id="tela"><div class="carregando">Carregando…</div></div>
+<div id="abertura" role="status" aria-label="Carregando o sistema"><div class="marca-ab"><div class="moldura"><div class="dentro"><div class="crm">CRM</div><div class="barras"><i></i><i></i><i></i><i></i></div></div></div><div class="nome" id="abNome">Atendimento</div><div class="vext">uma solução <b>Vext Code</b></div></div></div>
+<div id="tela"></div>
 <div id="modal"></div>
 <canvas id="festa" aria-hidden="true"></canvas>
 <div id="aviso" class="aviso" role="status" aria-live="polite" hidden></div>
@@ -187,6 +216,18 @@ const ICO = {
   baixo: '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>'
 };
 
+/* ---------- abertura (carregamento especial) ---------- */
+const T0 = Date.now();
+(function () { const n = ler(CHAVE + '-nome'); if (n) document.getElementById('abNome').textContent = n; })();
+let abFechada = false;
+function sairAbertura() {
+  if (abFechada) return; abFechada = true;
+  const ab = document.getElementById('abertura'); if (!ab) return;
+  const espera = Math.max(0, 1900 - (Date.now() - T0));
+  setTimeout(() => { ab.classList.add('sai'); setTimeout(() => ab.remove(), 550); }, espera);
+}
+if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
+
 /* ---------- estado ---------- */
 let S = { token: ler(CHAVE + '-token'), eu: null, configurado: false, cfg: null, pessoas: [], tickets: [], contatos: [], empresas: [], versao: '0', vendaVista: ler(CHAVE + '-venda') };
 let UI = { aba: 'todos', busca: '', fResp: '', fPrio: '', fCriado: '', fAtiv: '', abaTempo: 'todas', eventos: [], eventosDe: null };
@@ -212,6 +253,7 @@ function encerrar(msg) {
 }
 async function carregarTudo() {
   const j = await api('carregar');
+  if (j.config && j.config.cliente && j.config.cliente.nome) guardar(CHAVE + '-nome', j.config.cliente.nome);
   Object.assign(S, { eu: j.eu, configurado: j.configurado, cfg: j.config, pessoas: j.pessoas, tickets: j.tickets, contatos: j.contatos, empresas: j.empresas, versao: j.versao });
   if (S.vendaVista == null && j.ultimaVenda) { S.vendaVista = j.ultimaVenda.id; guardar(CHAVE + '-venda', S.vendaVista); }
 }
@@ -281,7 +323,7 @@ function lateral(ativo) {
   const it = [['quadro', plural(T()), 'tickets'], ['contatos', 'Contatos', 'contatos'], ['empresas', plural(E()), 'empresas']];
   if (gestor()) it.push(['config', 'Configurações', 'config']);
   const logo = S.cfg.cliente && S.cfg.cliente.logo;
-  return '<aside class="side" id="lateral"><div class="marca"><div class="logo' + (logo ? ' tem' : '') + '">' + (logo ? '<img src="' + esc(logo) + '" alt="">' : 'Logo') + '</div><div style="min-width:0"><b>' + esc((S.cfg.cliente && S.cfg.cliente.nome) || 'Atendimento') + '</b><span>Atendimento</span></div></div>' +
+  return '<aside class="side" id="lateral"><div class="marca"><div class="logo tem">' + (logo ? '<img src="' + esc(logo) + '" alt="">' : '<img src="icone-64.png" alt="">') + '</div><div style="min-width:0"><b>' + esc((S.cfg.cliente && S.cfg.cliente.nome) || 'Atendimento') + '</b><span>Atendimento</span></div></div>' +
     '<nav class="nav" aria-label="Menu principal">' + it.map(i => '<a href="#' + i[0] + '"' + (ativo === i[2] ? ' class="on" aria-current="page"' : '') + '>' + ICO[i[2]] + esc(i[1]) + '</a>').join('') + '</nav>' +
     '<div class="eu"><span><b style="color:var(--ink)">' + esc(S.eu.nome) + '</b> · ' + (gestor() ? 'Gestor' : 'Atendente') + '</span><button class="btn peq" data-sair>Sair</button></div></aside>';
 }
@@ -298,7 +340,7 @@ async function carregarPublico() {
 }
 function cabEntrada(pub) {
   const logo = pub && pub.logo, nome = (pub && pub.cliente) || 'Sistema de Atendimento';
-  return '<div style="display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center"><div class="logo' + (logo ? ' tem' : '') + '" style="width:64px;height:64px;border-radius:16px;' + (logo ? '' : 'border:0;background:var(--azul-claro);color:var(--azul)') + '">' + (logo ? '<img src="' + esc(logo) + '" alt="">' : ICO.tickets.replace('class="ic"', 'class="ic" style="width:30px;height:30px"')) + '</div><div><b style="display:block;font-size:19px">' + esc(nome) + '</b>' + (pub && pub.cliente ? '<span class="sub">Atendimento</span>' : '') + '</div></div>';
+  return '<div style="display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center"><div class="logo tem" style="width:64px;height:64px;border-radius:16px">' + (logo ? '<img src="' + esc(logo) + '" alt="">' : '<img src="icone-192.png" alt="">') + '</div><div><b style="display:block;font-size:19px">' + esc(nome) + '</b>' + (pub && pub.cliente ? '<span class="sub">Atendimento</span>' : '') + '</div></div>';
 }
 function telaEntrar(msg) {
   const lembrado = ler(CHAVE + '-email') || '';
@@ -310,7 +352,8 @@ function telaEntrar(msg) {
     '<button class="btn pri" style="min-height:48px;font-size:15px">Entrar</button></form>' +
     '<button class="btn" data-esqueci style="border:0;color:var(--azul);background:transparent">Esqueci minha senha</button>' +
     '<p class="sub" style="margin:0;text-align:center;font-size:12px">Atendimento · uma solução Vext Code</p></section></div>';
-  if (!PUB) carregarPublico().then(p => { const c = $('#cabEnt'); if (c) c.innerHTML = cabEntrada(p); });
+  if (!PUB) carregarPublico().then(p => { const c = $('#cabEnt'); if (c) c.innerHTML = cabEntrada(p); if (p && p.cliente) guardar(CHAVE + '-nome', p.cliente); });
+  sairAbertura();
   const f = $('#fLogin');
   (lembrado ? f.senha : f.email).focus();
   f.addEventListener('submit', async ev => {
@@ -325,6 +368,7 @@ function telaEntrar(msg) {
 }
 function telaSenha() {
   $('#tela').innerHTML = '<div class="entrada"><section aria-label="Criar senha">' + cabEntrada(PUB) + '<h1 style="font-size:22px">Crie a sua senha</h1><p class="sub" style="margin:0">Troque a senha provisória por uma só sua, com pelo menos 8 caracteres.</p><form id="fSenha" style="display:flex;flex-direction:column;gap:14px"><label class="campo">Senha nova<input type="password" name="a" autocomplete="new-password" minlength="8" required style="min-height:44px"></label><label class="campo">Repita a senha nova<input type="password" name="b" autocomplete="new-password" minlength="8" required style="min-height:44px"></label><p class="erro" id="eSenha"></p><button class="btn pri" style="min-height:46px">Salvar e continuar</button></form></section></div>';
+  sairAbertura();
   $('#fSenha').addEventListener('submit', async ev => {
     ev.preventDefault(); const f = ev.target, b = f.querySelector('button');
     if (f.a.value !== f.b.value) { $('#eSenha').textContent = 'As duas senhas não são iguais.'; return; }
@@ -335,9 +379,10 @@ function telaSenha() {
 }
 function telaAguarde() {
   $('#tela').innerHTML = '<div class="entrada"><section style="text-align:center;align-items:center"><h1 style="font-size:22px">O sistema está sendo configurado</h1><p class="sub" style="margin:0">O gestor da sua empresa ainda está fazendo a configuração inicial. Assim que ele terminar, entre de novo.</p><button class="btn" data-sair>Sair</button></section></div>';
+  sairAbertura();
 }
 async function abrir() {
-  $('#tela').innerHTML = '<div class="carregando">Carregando…</div>';
+  if (abFechada) $('#tela').innerHTML = '<div class="carregando">Carregando…</div>';
   try { await carregarTudo(); } catch (e) { if (S.token) telaEntrar(e.message); return; }
   if (S.eu.trocar_senha) { telaSenha(); return; }
   if (!S.configurado) { if (gestor()) { location.hash = '#config'; desenhar(); } else telaAguarde(); return; }
@@ -597,6 +642,7 @@ function desenhar(manterRolagem) {
   else html = telaQuadro();
   if (!html) return;
   $('#tela').innerHTML = html;
+  sairAbertura();
   if (rota === 'ticket') ligarFicha(id);
   if (rota === 'contato' || rota === 'empresa') {
     const tipo = rota === 'contato' ? 'contatos' : 'empresas', f = $('#fFicha2');
